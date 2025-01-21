@@ -41,16 +41,16 @@ app.post('/webhook', (req, res) => {
     // Cek apakah folder repository ada
     if (!fs.existsSync(DEPLOYMENT_PATH + '/' + repoName)) {
       console.log('Repository not found. Cloning...');
-      exec(`git clone ${repoUrl} ${DEPLOYMENT_PATH + '/' + repoName}`, (err, stdout, stderr) => {
+      exec(`git clone ${repoUrl} ${DEPLOYMENT_PATH}/${repoName}`, (err, stdout, stderr) => {
         if (err) {
           console.error(`Error during clone: ${stderr}`);
           return res.status(500).send('Clone failed');
         }
         console.log(`Clone success: ${stdout}`);
-        deployRepository(res);
+        deployRepository(res, repoName);
       });
     } else {
-      deployRepository(res);
+      deployRepository(res, repoName);
     }
   } else {
     res.status(200).send('Event ignored');
@@ -58,8 +58,8 @@ app.post('/webhook', (req, res) => {
 });
 
 // Deploy repository (git pull and docker-compose)
-function deployRepository(res) {
-  exec(`cd ${DEPLOYMENT_PATH + '/' + repoName} && git pull && docker-compose up --build -d`, (err, stdout, stderr) => {
+function deployRepository(res, repoName) {
+  exec(`cd ${DEPLOYMENT_PATH}/${repoName} && git pull && docker-compose up --build -d`, (err, stdout, stderr) => {
     if (err) {
       console.error(`Error during deploy: ${stderr}`);
       return res.status(500).send('Deploy failed');

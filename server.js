@@ -34,12 +34,14 @@ app.post('/webhook', (req, res) => {
       `https://${GITHUB_TOKEN}@github.com`
     );
 
-    console.log(`Repository URL: ${repoUrl}`);
+    const repoName = req.body.repository.name;
+
+    console.log(`Repository URL: ${repoUrl} ${repoName}`);
 
     // Cek apakah folder repository ada
-    if (!fs.existsSync(DEPLOYMENT_PATH)) {
+    if (!fs.existsSync(DEPLOYMENT_PATH + '/' + repoName)) {
       console.log('Repository not found. Cloning...');
-      exec(`git clone ${repoUrl} ${DEPLOYMENT_PATH}`, (err, stdout, stderr) => {
+      exec(`git clone ${repoUrl} ${DEPLOYMENT_PATH + '/' + repoName}`, (err, stdout, stderr) => {
         if (err) {
           console.error(`Error during clone: ${stderr}`);
           return res.status(500).send('Clone failed');
@@ -57,7 +59,7 @@ app.post('/webhook', (req, res) => {
 
 // Deploy repository (git pull and docker-compose)
 function deployRepository(res) {
-  exec(`cd ${DEPLOYMENT_PATH} && git pull && docker-compose up --build -d`, (err, stdout, stderr) => {
+  exec(`cd ${DEPLOYMENT_PATH + '/' + repoName} && git pull && docker-compose up --build -d`, (err, stdout, stderr) => {
     if (err) {
       console.error(`Error during deploy: ${stderr}`);
       return res.status(500).send('Deploy failed');

@@ -22,13 +22,45 @@ function verifySignature(req, res, buf) {
   }
 }
 
+// Function to handle deployment
+function handleDeployment(repoUrl, repoName, res) {
+  const repoPath = `${DEPLOYMENT_PATH}/${repoName}`;
+
+  // Check if repository exists
+  if (!fs.existsSync(repoPath)) {
+    console.log('Repository not found. Cloning...');
+    exec(`git clone ${repoUrl} ${repoPath}`, (err, stdout, stderr) => {
+      if (err) {
+        console.error(`Error during clone: ${stderr}`);
+        // Log error but do not send response here
+        return;
+      }
+      console.log(`Clone success: ${stdout}`);
+      deployRepository(repoPath);
+    });
+  } else {
+    deployRepository(repoPath);
+  }
+}
+
+// Function to deploy repository
+function deployRepository(repoPath) {
+  exec(`cd ${repoPath} && git pull && docker compose up --build -d`, (err, stdout, stderr) => {
+    if (err) {
+      console.error(`Error during deploy: ${stderr}`);
+      return;
+    }
+    console.log(`Deploy success: ${stdout}`);
+  });
+}
+
 // Handle webhook
 app.post('/webhook', (req, res) => {
   const event = req.headers['x-github-event'];
   if (event === 'push') {
     console.log('Push event received. Deploying...');
-    
-    // Ambil REPO_URL dari payload
+
+    // Extract and modify REPO_URL from payload
     const repoUrl = req.body.repository.clone_url.replace(
       'https://github.com',
       `https://${GITHUB_TOKEN}@github.com`
@@ -38,38 +70,18 @@ app.post('/webhook', (req, res) => {
 
     console.log(`Repository URL: ${repoUrl} ${repoName}`);
 
-    // Cek apakah folder repository ada
-    if (!fs.existsSync(DEPLOYMENT_PATH + '/' + repoName)) {
-      console.log('Repository not found. Cloning...');
-      exec(`git clone ${repoUrl} ${DEPLOYMENT_PATH}/${repoName}`, (err, stdout, stderr) => {
-        if (err) {
-          console.error(`Error during clone: ${stderr}`);
-          return res.status(500).send('Clone failed');
-        }
-        console.log(`Clone success: ${stdout}`);
-        deployRepository(res, repoName);
-      });
-    } else {
-      deployRepository(res, repoName);
-    }
+    // Respond immediately to GitHub
+    res.status(200).send('Webhook received. Deployment in progress.');
+
+    // Handle deployment asynchronously
+    handleDeployment(repoUrl, repoName, res);
   } else {
     res.status(200).send('Event ignored');
   }
 });
 
-// Deploy repository (git pull and docker-compose)
-function deployRepository(res, repoName) {
-  exec(`cd ${DEPLOYMENT_PATH}/${repoName} && git pull && docker compose up --build -d`, (err, stdout, stderr) => {
-    if (err) {
-      console.error(`Error during deploy: ${stderr}`);
-      return res.status(500).send('Deploy failed');
-    }
-    console.log(`Deploy success: ${stdout}`);
-    res.status(200).send('Deploy successful');
-  });
-}
-
 // Start server
-app.listen(3002, () => {
-  console.log('Server listening on port 3002');
+const PORT = process.env.PORT || 3002;
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
 });

@@ -1,14 +1,23 @@
 {
-    "name": "webhook-server",
-    "version": "1.0.0",
-    "description": "Simple github webhook server",
-    "main": "server.js",
-    "scripts": {
-      "start": "node server.js"
-    },
-    "dependencies": {
-      "express": "^4.18.2",
-      "dotenv": "^16.4.7"
-    }
+  "name": "webhook-server",
+  "version": "1.0.0",
+  "description": "Simple github webhook server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node webhook.js",
+    "start:prod": "pm2 start webhook.js --name my-webhook-app",
+    "stop:prod": "pm2 stop my-webhook-app",
+    "restart:prod": "pm2 restart my-webhook-app",
+    "logs": "pm2 logs my-webhook-app",
+    "setup:pm2": "pm2 startup && pm2 save"
+  },
+  "dependencies": {
+    "@bull-board/api": "^3.0.0",
+    "@bull-board/express": "^3.0.0",
+    "bull": "^4.0.0",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.2",
+    "winston": "^3.8.2"
   }
-  
+}

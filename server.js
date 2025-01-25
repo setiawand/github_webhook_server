@@ -59,7 +59,7 @@ app.post('/webhook', (req, res) => {
 
 // Deploy repository (git pull and docker-compose)
 function deployRepository(res, repoName) {
-  exec(`cd ${DEPLOYMENT_PATH}/${repoName} && git pull && docker-compose up --build -d`, (err, stdout, stderr) => {
+  exec(`cd ${DEPLOYMENT_PATH}/${repoName} && git pull && docker compose up --build -d`, (err, stdout, stderr) => {
     if (err) {
       console.error(`Error during deploy: ${stderr}`);
       return res.status(500).send('Deploy failed');

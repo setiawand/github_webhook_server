@@ -2,7 +2,7 @@
   "name": "webhook-server",
   "version": "1.0.0",
   "description": "Simple github webhook server",
-  "main": "server.js",
+  "main": "webhook.js",
   "scripts": {
     "start": "node webhook.js",
     "start:prod": "pm2 start webhook.js --name my-webhook-app",

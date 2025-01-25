@@ -7,6 +7,11 @@ const Queue = require('bull');
 const winston = require('winston');
 require('dotenv').config();
 
+// Bull Board imports
+const { createBullBoard } = require('@bull-board/api');
+const { BullAdapter } = require('@bull-board/api/bullAdapter');
+const { ExpressAdapter } = require('@bull-board/express');
+
 const app = express();
 
 // Promisify exec for better async/await handling
@@ -42,6 +47,20 @@ const deployQueue = new Queue('deployments', {
   redis: { port: 6379, host: '127.0.0.1' }, // Adjust if needed
 });
 
+// Setup Bull Board
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath('/admin/queues');
+
+createBullBoard({
+  queues: [
+    new BullAdapter(deployQueue),
+    // Add more queues here if you have multiple
+  ],
+  serverAdapter: serverAdapter,
+});
+
+app.use('/admin/queues', serverAdapter.getRouter());
+
 // Process deployment jobs
 deployQueue.process(async (job) => {
   const { repoUrl, repoName } = job.data;
@@ -59,7 +78,7 @@ deployQueue.process(async (job) => {
     }
 
     logger.info(`Deploying repository ${repoName} with Docker Compose...`);
-    await execPromise(`cd ${repoPath} && docker compose up --build -d`);
+    await execPromise(`cd ${repoPath} && docker compose up --build -d && docker image prune -f`);
     logger.info(`Deployment of ${repoName} completed successfully.`);
   } catch (error) {
     logger.error(`Deployment failed for ${repoName}: ${error.message}`);

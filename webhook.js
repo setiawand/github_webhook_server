@@ -66,7 +66,7 @@ app.use('/admin/queues', serverAdapter.getRouter());
 
 // Process deployment jobs
 deployQueue.process(async (job) => {
-  const { repoUrl, repoName } = job.data;
+  const { repoUrl, repoName, branch, commitMessage, committer } = job.data;
   const repoPath = `${DEPLOYMENT_PATH}/${repoName}`;
 
   try {
@@ -141,9 +141,15 @@ app.post('/webhook', (req, res) => {
     );
 
     const repoName = req.body.repository.name;
+    const branch = req.body.ref.split('/').pop(); // Extract branch name
+    const commitMessage = req.body.head_commit ? req.body.head_commit.message : 'No commit message';
+    const committer = req.body.head_commit ? req.body.head_commit.committer.username : 'Unknown';
 
     logger.info(`Repository URL: ${repoUrl}`);
     logger.info(`Repository Name: ${repoName}`);
+    logger.info(`Branch: ${branch}`);
+    logger.info(`Committer: ${committer}`);
+    logger.info(`Commit Message: ${commitMessage}`);
 
     // Add job to queue
     deployQueue.add({

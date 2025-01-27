@@ -5,6 +5,9 @@ const fs = require('fs');
 const util = require('util');
 const Queue = require('bull');
 const winston = require('winston');
+
+const { sendDeploymentSuccessEmail, sendDeploymentFailureEmail } = require('./mailer');
+
 require('dotenv').config();
 
 // Bull Board imports
@@ -80,8 +83,35 @@ deployQueue.process(async (job) => {
     logger.info(`Deploying repository ${repoName} with Docker Compose...`);
     await execPromise(`cd ${repoPath} && docker compose up --build -d && docker image prune -f`);
     logger.info(`Deployment of ${repoName} completed successfully.`);
+
+    // Gather deployment information
+    const deploymentInfo = {
+      repoName: repoName,
+      branch: branch,
+      timestamp: new Date().toLocaleString(),
+      deployedBy: 'Deployment Bot', // Customize as needed
+      commitMessage: commitMessage,
+      committer: committer,
+    };
+
+    // Send deployment success email
+    await sendDeploymentSuccessEmail(deploymentInfo);
+
   } catch (error) {
     logger.error(`Deployment failed for ${repoName}: ${error.message}`);
+
+    // Gather failure information
+    const failureInfo = {
+      repoName: repoName,
+      branch: branch,
+      timestamp: new Date().toLocaleString(),
+      deployedBy: 'Deployment Bot', // Customize as needed
+      error: error.message,
+    };
+
+    // Send deployment failure email
+    await sendDeploymentFailureEmail(failureInfo);
+
     throw error; // Let Bull handle retries if configured
   }
 });
@@ -116,7 +146,19 @@ app.post('/webhook', (req, res) => {
     logger.info(`Repository Name: ${repoName}`);
 
     // Add job to queue
-    deployQueue.add({ repoUrl, repoName });
+    deployQueue.add({
+      repoUrl,
+      repoName,
+      branch,
+      commitMessage,
+      committer,
+    }, {
+      attempts: 3, // Retry up to 3 times on failure
+      backoff: {
+        type: 'exponential',
+        delay: 5000, // 5 seconds initial delay
+      },
+    });
 
     // Respond immediately
     res.status(200).send('Webhook received. Deployment enqueued.');
